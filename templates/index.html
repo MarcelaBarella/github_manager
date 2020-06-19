@@ -1,0 +1,18 @@
+<html>
+    <head>
+        <title>Github Manager</title>
+    </head>
+    <body>
+        <div>
+            <h1>Welcome to Github Manager</h1>
+            {% if g.user %}
+                <h3>Hi, {{ g.user }}</h3>
+                <a href="{{ url_for('user') }}">Get the user</a>
+                <button type="button" onclick="{{ url_for('logout') }}">Logout</button>
+            {% else %}
+                <p>Please log to use the application</p>
+                <a href="{{ url_for('login') }}">Login</a>
+            {% endif %} 
+        </div>
+    </body>
+</html>
