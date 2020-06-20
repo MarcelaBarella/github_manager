@@ -11,6 +11,7 @@ jinja2 = "*"
 install = "*"
 github-flask = "*"
 sqlalchemy = "*"
+flask-sqlalchemy = "*"
 
 [requires]
 python_version = "3.8"
