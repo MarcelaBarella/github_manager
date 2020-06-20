@@ -7,18 +7,20 @@ from sqlalchemy.ext.declarative import declarative_base
 
 
 app = Flask(__name__)
-app.config['GITHUB_CLIENT_ID'] = 'f0859156c46db4e5ed5d'
-app.config['GITHUB_CLIENT_SECRET'] = 'adc3ec6ca59afcd825e87a7fd24118b07c41dfb0'
+app.config['GITHUB_CLIENT_ID'] = 'banana'
+app.config['GITHUB_CLIENT_SECRET'] = 'banana'
 app.config['GITHUB_BASE_URL'] = 'https://api.github.com'
 app.config['GITHUB_AUTH_URL'] = 'https://github.com/login/oauth/'
-app.config['DATABASE_URI'] =  'sqlite:////tmp/github.db'
+app.config['DATABASE_URI'] =  'sqlite:////tmp/github-flask.db'
 
 github = GitHub(app)
 
 engine = create_engine(app.config['DATABASE_URI'])
+
 db_session = scoped_session(sessionmaker(autocommit=False,
                                          autoflush=False,
                                          bind=engine))
+                                       
 Base = declarative_base()
 Base.query = db_session.query_property()
 
@@ -35,7 +37,7 @@ class User(Base):
     login = Column(String(255))
 
     def __init__(self, access_token):
-        self.ccess_token = access_token
+        self.access_token = access_token
 
 
 @app.before_request
@@ -51,11 +53,33 @@ def after_request(response):
     return response
 
 
-@app.route('/')
-@app.route('/index')
-def index():
-    return render_template('index.html')
+@app.route('/<provider>')
+@app.route('/index/<provider>')
+def test(provider):
+    import pdb
+    pdb.set_trace()
+    if g.user:
+        t = 'Hello! %s <a href="{{ url_for("user") }}">Get user</a> ' \
+            '<a href="{{ url_for("repo") }}">Get repo</a> ' \
+            '<a href="{{ url_for("logout") }}">Logout</a>'
+        t %= g.user.github_login
+    else:
+        t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
 
+    return render_template_string(t)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    if g.user:
+        t = 'Hello! %s <a href="{{ url_for("user") }}">Get user</a> ' \
+            '<a href="{{ url_for("repo") }}">Get repo</a> ' \
+            '<a href="{{ url_for("logout") }}">Logout</a>'
+        t %= g.user.github_login
+    else:
+        t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
+
+    return render_template_string(t)
 
 
 @github.access_token_getter
