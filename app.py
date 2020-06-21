@@ -4,9 +4,9 @@ from flask import (Flask, request, g, session, redirect, url_for,
                    render_template, jsonify, render_template_string,
                    make_response)
 from flask_github import GitHub
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+
+from infra.database import engine, db_session, Base
+from services.github_service import GithubService
 
 
 app = Flask(__name__)
@@ -17,41 +17,20 @@ app.config['GITHUB_AUTH_URL'] = 'https://github.com/login/oauth/'
 app.config['DATABASE_URI'] = 'sqlite:////tmp/github-flask.db'
 
 github = GitHub(app)
-
-engine = create_engine(app.config['DATABASE_URI'])
-
-db_session = scoped_session(sessionmaker(autocommit=False,
-                                         autoflush=False,
-                                         bind=engine))
-
-Base = declarative_base()
-Base.query = db_session.query_property()
+github_service = GithubService(github, db_session)
 
 
 def init_db():
+    from domain.user import User
     Base.metadata.create_all(bind=engine)
-
-
-class User(Base):
-    __tablename__ = 'users'
-
-    id = Column(Integer, primary_key=True)
-    access_token = Column(String(255))
-    github_id = Column(Integer)
-    login = Column(String(255))
-
-    def __init__(self, access_token):
-        self.access_token = access_token
 
 
 @app.before_request
 def before_request():
-    g.user = None
     access_token = request.cookies.get('user_token')
     if access_token:
-        import pdb
-        pdb.set_trace()
-        g.user = User.query.get(access_token)
+        g.user = github_service.update_user_and_get(
+            access_token, g)
 
 
 @app.after_request
@@ -63,11 +42,11 @@ def after_request(response):
 @app.route('/<provider>')
 @app.route('/index/<provider>')
 def test(provider):
-    if g.user:
-        t = 'Hello! %s <a href="{{ url_for("user") }}">Get user</a> ' \
-            '<a href="{{ url_for("repo") }}">Get repo</a> ' \
+    if 'user' in g:
+        t = 'Hello! %s <a href="{{ url_for("get_user") }}">Get user</a> ' \
+            '<a href="{{ url_for("get_repo") }}">Get repo</a> ' \
             '<a href="{{ url_for("logout") }}">Logout</a>'
-        t %= g.user.github_login
+        t %= g.user.login
     else:
         t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
 
@@ -76,11 +55,11 @@ def test(provider):
 
 @app.route('/', methods=['GET'])
 def index():
-    if g.user:
-        t = 'Hello! %s <a href="{{ url_for("user") }}">Get user</a> ' \
-            '<a href="{{ url_for("repo") }}">Get repo</a> ' \
+    if 'user' in g:
+        t = 'Hello! %s <a href="{{ url_for("get_user") }}">Get user</a> ' \
+            '<a href="{{ url_for("get_repo") }}">Get repo</a> ' \
             '<a href="{{ url_for("logout") }}">Logout</a>'
-        t %= g.user.github_login
+        t %= g.user.login
     else:
         t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
 
@@ -89,9 +68,8 @@ def index():
 
 @github.access_token_getter
 def get_token():
-    user = g.user
-    if user is not None:
-        return user.access_token
+    if 'user' in g:
+        return g.user.access_token
 
 
 @app.route('/github-callback')
@@ -101,23 +79,8 @@ def authorized(oauth_token):
     if oauth_token is None:
         return redirect(next_url)
 
-    user = User.query.filter_by(access_token=oauth_token).first()
-    if user is None:
-        user = User(oauth_token)
-        db_session.add(user)
-
-    user.access_token = oauth_token
-
-    g.user = user
-    github_user = github.get('/user')
-    user.github_id = github_user['id']
-    user.login = github_user['login']
-
-    db_session.commit()
-
-    import pdb
-    pdb.set_trace()
-    resp = make_response(redirect('/'))
+    github_service.update_user_and_get(oauth_token, g)
+    resp = make_response(redirect(url_for("index")))
     resp.set_cookie('user_token', oauth_token)
     return resp
 
@@ -132,8 +95,9 @@ def login():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
-    return redirect(url_for('index'))
+    resp = make_response(redirect(url_for("index")))
+    resp.set_cookie('user_token', '', expires=0)
+    return resp
 
 
 @app.route('/user')
@@ -143,7 +107,7 @@ def get_user():
 
 @app.route('/repo')
 def get_repo():
-    return jsonify(github.get(''))
+    return jsonify(github.get(g.user.repos_url))
 
 
 if __name__ == '__main__':
