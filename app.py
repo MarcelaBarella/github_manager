@@ -48,10 +48,10 @@ def get_user():
     return jsonify(github.get('/user'))
 
 
-@app.route('/repos', methods=['GET'])
+@app.route('/repos')
 def get_repos():
-    repos = jsonify(github.get('/user/repos'))
-    return repos
+    repos = github.get('/user/repos')
+    return render_template('repos.html', repos=repos)
 
 
 @github.access_token_getter

@@ -5,6 +5,16 @@
     <body>
         <div>
             <h1>Repositories</h1>
+            {% for repo in repos%}
+                <h3><strong>Id:</strong>{{ repo.id }}</h3>
+                <h3><strong>Name:</strong>{{ repo.name }}</h3>
+                {% if repo.description %}
+                    <h3><strong>Description:</strong>{{ repo.description }}</h3>
+                {% else %}
+                    <h3><strong>Description:</strong>This repositorie doesn't have a description :/</h3>
+                {% endif %}
+                <h3><strong>Url:</strong>{{ repo.url }}</h3>
+            {% endfor %}
         </div>
     </body>
 </html>
