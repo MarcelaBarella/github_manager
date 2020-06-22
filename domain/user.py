@@ -10,4 +10,3 @@ class User(Base):
     access_token = Column(String(255))
     github_id = Column(Integer)
     login = Column(String(255))
-    repos_url = Column(String(1024))

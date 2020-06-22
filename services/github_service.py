@@ -19,7 +19,6 @@ class GithubService:
             user = User()
             user.github_id = github_id
             user.login = github_user['login']
-            user.repos_url = github_user['repos_url']
             self.db_session.add(user)
 
         user.access_token = github_token
