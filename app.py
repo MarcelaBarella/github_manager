@@ -1,8 +1,7 @@
 import os
 
 from flask import (Flask, request, g, session, redirect, url_for,
-                   render_template, jsonify, render_template_string,
-                   make_response)
+                   render_template, jsonify, make_response)
 from flask_github import GitHub
 
 from infra.database import engine, db_session, Base
@@ -38,32 +37,21 @@ def after_request(response):
     db_session.remove()
     return response
 
-
-@app.route('/<provider>')
-@app.route('/index/<provider>')
-def test(provider):
-    if 'user' in g:
-        t = 'Hello! %s <a href="{{ url_for("get_user") }}">Get user</a> ' \
-            '<a href="{{ url_for("get_repo") }}">Get repo</a> ' \
-            '<a href="{{ url_for("logout") }}">Logout</a>'
-        t %= g.user.login
-    else:
-        t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
-
-    return render_template_string(t)
-
-
+@app.route('/index')
 @app.route('/', methods=['GET'])
 def index():
-    if 'user' in g:
-        t = 'Hello! %s <a href="{{ url_for("get_user") }}">Get user</a> ' \
-            '<a href="{{ url_for("get_repo") }}">Get repo</a> ' \
-            '<a href="{{ url_for("logout") }}">Logout</a>'
-        t %= g.user.login
-    else:
-        t = 'Hello! <a href="{{ url_for("login") }}">Login</a>'
+    return render_template('index.html')
 
-    return render_template_string(t)
+
+@app.route('/user')
+def get_user():
+    return jsonify(github.get('/user'))
+
+
+@app.route('/repos', methods=['GET'])
+def get_repos():
+    repos = jsonify(github.get('/user/repos'))
+    return repos
 
 
 @github.access_token_getter
@@ -80,7 +68,7 @@ def authorized(oauth_token):
         return redirect(next_url)
 
     github_service.update_user_and_get(oauth_token, g)
-    resp = make_response(redirect(url_for("index")))
+    resp = make_response(redirect(url_for('index')))
     resp.set_cookie('user_token', oauth_token)
     return resp
 
@@ -95,19 +83,9 @@ def login():
 
 @app.route('/logout')
 def logout():
-    resp = make_response(redirect(url_for("index")))
+    resp = make_response(redirect(url_for('index')))
     resp.set_cookie('user_token', '', expires=0)
     return resp
-
-
-@app.route('/user')
-def get_user():
-    return jsonify(github.get('/user'))
-
-
-@app.route('/repo')
-def get_repo():
-    return jsonify(github.get(g.user.repos_url))
 
 
 if __name__ == '__main__':
