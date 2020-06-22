@@ -43,12 +43,12 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/user')
+@app.route('/user', methods=['GET'])
 def get_user():
     return jsonify(github.get('/user'))
 
 
-@app.route('/repos')
+@app.route('/repos', methods=['GET'])
 def get_repos():
     repos = github.get('/user/repos')
     return render_template('repos.html', repos=repos)
@@ -60,7 +60,7 @@ def get_token():
         return g.user.access_token
 
 
-@app.route('/github-callback')
+@app.route('/github-callback',  methods=['GET'])
 @github.authorized_handler
 def authorized(oauth_token):
     next_url = request.args.get('next') or url_for('index')
@@ -73,7 +73,7 @@ def authorized(oauth_token):
     return resp
 
 
-@app.route('/login')
+@app.route('/login' methods=['GET'])
 def login():
     if session.get('user_id', None) is None:
         return github.authorize()
@@ -81,7 +81,7 @@ def login():
         return 'Already logged in'
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET'])
 def logout():
     resp = make_response(redirect(url_for('index')))
     resp.set_cookie('user_token', '', expires=0)
