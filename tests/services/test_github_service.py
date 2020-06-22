@@ -1,51 +1,61 @@
-from mock import MagicMock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask import g
+from assertpy import assert_that
 
 from services.github_service import GithubService
-from app import app
+from domain.user import User
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def github():
-    github_mock = MagicMock()
-    github_mock.__get__ = MagicMock()
+    github_mock = Mock()
+    github_mock.get.return_value = {
+        'id': 'github_foo_user_id',
+        'login': 'github_foo_login',
+        'repos_url': 'https://api.github.com/foo_repos_url'
+    }
+
     return github_mock
 
-@pytest.fixture(scope='module')
-def new_user_github():
-    github_mock = MagicMock(id=1981,login='donkeykong', 
-                            access_token='pineapplesmells')
-    return github_mock
 
-@pytest.fixture(scope='module')
+@pytest.fixture
+def github_service(github, db_session):
+    return GithubService(github, db_session)
+
+
+@pytest.fixture
 def db_session():
-    return MagicMock()
-
-@pytest.fixture(scope='module')
-def user():
-    return MagicMock(github_id=666, access_token='banana', login='brass_monkey')
-
-@pytest.fixture(scope='module')
-def created_new_user():
-    return MagicMock(github_id=1981, access_token='pineapplesmells', 
-                    login='donkeykong')
+    return Mock()
 
 
-class TestGithubService():
-    def test_update_user_and_get_authenticate_and_return_user(github, db_session, user):
-        with app.app_context():
-            github_service = GithubService(github, db_session)
-            oauth_token = 'banana'
-
-            assert github_service.update_user_and_get(oauth_token, g) == user
+@pytest.fixture
+def flask_global():
+    return Mock()
 
 
-    def test_update_user_and_get_create_user_if_it_not_exists(github, db_session, new_user_gihub, 
-                                                            created_new_user):
-        with app.app_context():
-            github_service = GithubService(github, db_session)
-            new_user = github_service.update_user_and_get(new_user_github.access_token, g)
+@pytest.fixture
+def updated_user(github_service, flask_global):
+    user = github_service.update_user_and_get('foo_token', flask_global)
+    return user
 
-            assert new_user == created_new_user
+
+def test__update_user_and_get__should_set_user_access_token(updated_user):
+    assert_that(updated_user.access_token).is_equal_to('foo_token')
+
+
+def test__update_user_and_get__should_set_github_id(updated_user):
+    assert_that(updated_user.github_id).is_equal_to('github_foo_user_id')
+
+
+def test__update_user_and_get__should_set_login(updated_user):
+    assert_that(updated_user.login).is_equal_to('github_foo_login')
+
+
+def test__update_user_and_get__should_set_repos_url(updated_user):
+    assert_that(updated_user.repos_url).is_equal_to(
+        'https://api.github.com/foo_repos_url')
+
+
+def test__update_user_and_get__should_get_user_data_from_github(updated_user, github):
+    github.get.assert_called_once()

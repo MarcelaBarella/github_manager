@@ -12,6 +12,7 @@ install = "*"
 github-flask = "*"
 sqlalchemy = "*"
 flask-sqlalchemy = "*"
+assertpy = "*"
 
 [requires]
 python_version = "3.8"
